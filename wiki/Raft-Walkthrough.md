@@ -13,6 +13,9 @@ stateDiagram-v2
     Candidate --> Follower: discovers higher term<br/>or current leader
     Leader --> Follower: discovers higher term
     Follower --> Follower: valid AppendEntries<br/>resets timer
+
+    classDef role fill:#0d1117,stroke:#38bdf8,color:#f5f7fa
+    class Follower,Candidate,Leader role
 ```
 
 A node starts as a `Follower`. If it does not hear from a leader before its randomised election deadline it tries to become a `Candidate`, but only after a pre-vote round succeeds. A candidate that wins a majority becomes `Leader`; any node that sees a higher term steps down to follower.
@@ -52,3 +55,12 @@ Term and vote are persisted before any vote is granted; log entries are flushed 
 ## Snapshots and log compaction
 
 When a node has applied more than `SnapshotThreshold` entries past its last snapshot, `maybeSnapshotLocked` asks the application for a serialised snapshot, persists it, and discards the covered log prefix (`FileStorage.SaveSnapshot`). If a follower then needs entries that have been compacted away, the leader sends `InstallSnapshot` instead of `AppendEntries` (`sendToPeerLocked` falls through to `sendSnapshotLocked`). The follower adopts the snapshot in `HandleInstallSnapshot`, fast-forwards its commit and applied indices, and hands the snapshot to the application. `TestSnapshotInstall` isolates a follower, drives enough writes to force compaction, heals, and asserts the follower is caught up through a snapshot install.
+
+## Failure modes worth knowing
+
+- A node isolated by a partition keeps incrementing its term as it tries and fails to win elections. When it rejoins, its term may be far ahead of everyone else, but pre-vote stops it forcing a re-election because its log is stale. Without pre-vote this is the classic disruptive-rejoin bug.
+- A leader that commits an entry, then loses leadership before the no-op of the next term is committed, can leave a committed-but-not-yet-applied gap on followers. The new leader's no-op closes it; this is why a read waits for the apply loop to reach the read index rather than trusting the commit index alone.
+- A torn write in `log.bin` from a crash mid-append looks like a short or bad-CRC trailing record and is truncated on open. A corruption in the middle of the log is not recoverable and surfaces as an error from `NewFileStorage`, which is the honest outcome.
+
+---
+SarmaLinux . sarmalinux.com . [raftkv on GitHub](https://github.com/sarmakska/raftkv)

@@ -81,3 +81,6 @@ err := c.Restart(nodeID) // bring it back, replaying state and log from disk
 ## Tuning timeouts
 
 If you see frequent "no leader" errors under load, the most common cause is an election timeout that is too close to the heartbeat interval, which lets transient delays trigger spurious elections. Keep `ElectionTimeoutMin` at roughly three to five times `HeartbeatInterval`. See [[Troubleshooting]] for more.
+
+---
+SarmaLinux . sarmalinux.com . [raftkv on GitHub](https://github.com/sarmakska/raftkv)

@@ -25,6 +25,11 @@ flowchart LR
     commit --> apply["applyLoop emits ApplyMsg"]
     apply --> sm["kv.Store.Apply"]
     sm --> read["Client.Get reads through read-index"]
+
+    classDef c fill:#0d1117,stroke:#38bdf8,color:#f5f7fa
+    classDef a fill:#0d1117,stroke:#34d399,color:#f5f7fa
+    class app,propose,log,repl,commit c
+    class apply,sm,read a
 ```
 
 A write becomes a `kv.Command`, is serialised, and is handed to `Node.Propose`. The leader appends it to its log, replicates it with `AppendEntries`, and advances `commitIndex` once a majority has it. The apply loop then delivers committed entries in order to the state machine through an `ApplyMsg` channel. Reads do not go through the log; they go through `Node.ReadIndex`, which confirms leadership and waits for the state machine to catch up before the client reads the store.
@@ -64,3 +69,26 @@ Each Raft node guards all of its mutable state with a single `sync.Mutex`. The p
 - `snapshot.json` holds the most recent snapshot and is the anchor for log compaction.
 
 The invariant the persistence layer upholds is that anything acknowledged to a peer or a client has already been flushed to disk, which is what lets committed entries survive a crash. See [[Raft-Walkthrough]] for how the core uses these.
+
+## Design decisions
+
+Several choices here went against the obvious option. These are the ones worth defending.
+
+### Read-index over a leader lease alone
+
+The fast path for reads is a pure leader lease: trust a wall-clock timer, skip the read index, answer locally. I rejected that as the sole mechanism because it ties correctness to bounded clock drift between machines, and a paused VM or an NTP step would silently break linearizability with no deterministic test able to have caught it. So the lease (`raft/read.go`) is an optimisation layered on top of the read index, never a replacement. Under the lease a read is local; without it the leader pays for a heartbeat round to reconfirm leadership. Correctness never rests on the clock alone.
+
+### A single mutex per node over a channel-per-actor design
+
+Go nudges you toward modelling each node as a goroutine that owns its state and communicates over channels. I tried that and the code drifted away from the paper, turning Raft's already-subtle invariants into a message-ordering puzzle. I went back to one `sync.Mutex` per `Node`, with internal helpers suffixed `Locked` so the contract is visible at the call site, and the election and heartbeat logic on one ticker goroutine. The cost is that I cannot fan out RPCs while holding the lock: sends run on goroutines that re-acquire only to apply the reply. The payoff is that the core reads next to the paper's pseudocode.
+
+### A custom append-only log over an embedded database
+
+Persisting the log to SQLite or bbolt would have saved the recovery code. I wrote a length-prefixed, CRC-checked append-only file (`raft/storage.go`) instead, because torn-write recovery from a crash is part of what I wanted to demonstrate, and burying it inside a database would have hidden the one mechanism a reviewer most wants to see. `TestTornTrailingRecordDiscarded` simulates a crash mid-write and asserts the torn trailing record is discarded on reopen while the good entries survive.
+
+### A custom Wing and Gong checker over Porcupine or Knossos
+
+Pulling in an existing linearizability checker would have meant the proof was outsourced. The point of this project is the proof, so the checker in `linz/` is the classic Wing and Gong backtracking search, written here, partitioned per key with memoisation. It is enough for the history sizes the tests produce. See [[Linearizability-Checker]] for the algorithm and its limits.
+
+---
+SarmaLinux . sarmalinux.com . [raftkv on GitHub](https://github.com/sarmakska/raftkv)

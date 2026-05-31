@@ -59,3 +59,6 @@ This page collects the issues you are most likely to hit, with the cause and the
 **Cause.** The integration tests drive real timers, so an unusually slow scheduler can push an election past a test deadline.
 
 **Fix.** The default test timeouts leave generous headroom, but on a heavily loaded machine you can widen the `waitLeader` deadlines or the `fastOpts` timeouts. The consensus logic itself does not depend on the absolute timer values, only on the election window being larger than the heartbeat.
+
+---
+SarmaLinux . sarmalinux.com . [raftkv on GitHub](https://github.com/sarmakska/raftkv)

@@ -74,3 +74,12 @@ if res := linz.Check(history); !res.Linearizable {
 ```
 
 Every `Put` and `Get` records an invoke and a return into `history`. While that runs the nemesis is partitioning, dropping, delaying and crashing. The client transparently retries against whichever node is leader. At the end the checker proves no client ever observed a value that a correct single-copy register could not have produced.
+
+## Failure modes worth knowing
+
+- If the nemesis ever partitioned away a majority, the cluster would correctly stall: no leader, the client times out with `ErrNoLeader`, and the recorded operations are unconfirmed. The schedule is written so a majority always survives, because the property under test is what the cluster does while it can still make progress, not that it makes progress when it cannot.
+- A delay window wider than the client timeout will turn writes into unconfirmed operations. That is not a checker bug; the checker handles unconfirmed operations soundly. It does mean a too-aggressive delay produces a history with little to check, so the windows here are deliberately under the client timeout.
+- The seed reproduces the fault schedule, not a bit-exact run, because Raft's own election timers add real-time jitter. For a timing-driven protocol that is the right granularity of reproducibility.
+
+---
+SarmaLinux . sarmalinux.com . [raftkv on GitHub](https://github.com/sarmakska/raftkv)
