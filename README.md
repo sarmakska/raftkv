@@ -1,5 +1,3 @@
-<p align="center"><img src=".github/brand/banner.svg" alt="raftkv by sarmalinux" width="100%"></p>
-
 # raftkv
 
 A Raft key-value store with a built-in fault-injection harness that proves linearizability under partitions and crashes.
