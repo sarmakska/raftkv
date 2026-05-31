@@ -1,0 +1,31 @@
+# Build artefacts
+/bin/
+/dist/
+/build/
+*.test
+*.out
+# The compiled demo binary at the repo root, not the cmd/raftkvd source dir.
+/raftkvd
+
+# Coverage
+/coverage/
+coverage.txt
+*.cover
+
+# Go workspace
+go.work
+go.work.sum
+
+# Editor and OS noise
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Local environment
+.env*.local
+
+# Node and Python noise (kept for safety if tooling is added)
+node_modules/
+__pycache__/
+target/
