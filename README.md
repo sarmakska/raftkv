@@ -135,7 +135,7 @@ What I will add: a real network transport behind the existing seam, and a record
 
 ## Tests
 
-27 tests across the packages cover leader election, election after a partition, log convergence after a heal, leadership change, recovery of committed entries from disk after a crash, snapshot install to a lagging follower, torn-write recovery, and the checker accepting valid histories while rejecting stale reads, phantom reads and a corrupted history. The flagship `TestLinearizableUnderChaos` drives a workload while the nemesis injects faults and asserts the recorded history is linearizable. `go test -race ./...` is clean.
+37 tests across the packages cover leader election, election after a partition, log convergence after a heal, leadership change, recovery of committed entries from disk after a crash, snapshot install to a lagging follower, torn-write recovery, and the checker accepting valid histories while rejecting stale reads, phantom reads and a corrupted history. The fault harness itself is pinned down directly: a seeded suite asserts that a partition is a hard symmetric cut, that an unlisted node stays connected, that `Isolate` cuts exactly one node, that `Heal` restores the cluster, that the drop rate is honoured and exactly reproducible under a fixed seed, and that delays always land inside the configured window. The flagship `TestLinearizableUnderChaos` then drives a workload while the nemesis injects faults and asserts the recorded history is linearizable. `go test -race ./...` is clean.
 
 ## Documentation
 

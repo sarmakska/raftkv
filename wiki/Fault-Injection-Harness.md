@@ -22,6 +22,8 @@ It applies three classes of fault, in order:
 
 The injector never touches Raft state. It only decides whether a message is delivered and when. That means any behaviour it provokes (a leader stepping down, a follower backtracking, a snapshot install) is the genuine consensus code reacting to a hostile network, not a mock. If a test fails, the bug is real.
 
+Because the harness is the lens through which every consistency claim is observed, it is held to the same standard as the code under test. `fault/fault_test.go` pins the injector directly: a partition is a hard symmetric cut, an unlisted node stays connected, `Isolate` cuts exactly one node, `Heal` restores the cluster, the drop rate is honoured and exactly reproducible under a fixed seed, and delays always land inside the configured window. A seeded injector is pure logic, so these tests are deterministic and fast. The full inventory is on the [[Testing-Strategy]] page.
+
 ## The nemesis
 
 `Nemesis` drives a schedule against a running cluster:

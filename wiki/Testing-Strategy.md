@@ -4,7 +4,7 @@ The testing approach inverts the usual order: I wrote the checker and the fault 
 
 ## The inventory
 
-27 entries across the packages (26 `Test*` functions plus one runnable `Example`), two benchmarks. `go test -race ./...` is clean. CI (`.github/workflows/ci.yml`) runs gofmt, `go vet`, build, and `go test -race ./...` on push and pull request.
+37 entries across the packages (36 `Test*` functions plus one runnable `Example`), two benchmarks. `go test -race ./...` is clean. CI (`.github/workflows/ci.yml`) runs gofmt, `go vet`, build, and `go test -race ./...` on push and pull request.
 
 ### cluster (`cluster/cluster_test.go`)
 
@@ -48,6 +48,23 @@ The testing approach inverts the usual order: I wrote the checker and the fault 
 ### kv (`kv/kv_test.go`)
 
 `TestApplyAndGet`, `TestSnapshotRestore`, `TestEncodeDecodeRoundTrip` pin the state machine: apply semantics, snapshot round trip, command encoding.
+
+### fault (`fault/fault_test.go`)
+
+The harness that injures the cluster is itself a piece of code that can be wrong, so it is pinned directly rather than only through the chaos test. The `Injector` is pure, seeded logic, which makes it cheap and deterministic to test.
+
+| Test | What it pins |
+| --- | --- |
+| `TestInjectorNoFaults` | A fresh injector delivers every message, including a node to itself, with no delay. |
+| `TestInjectorPartition` | A partition is a hard cut: within-group always delivers, cross-group never does, symmetrically. |
+| `TestInjectorPartitionUnlistedNodeStaysConnected` | A node named in no group reaches both sides; the listed nodes stay cut. |
+| `TestInjectorIsolate` | `Isolate` cuts exactly one node off and leaves the surviving majority connected. |
+| `TestInjectorHeal` | `Heal` clears partition, drop rate and delay so the cluster is whole again. |
+| `TestInjectorDropRateBounds` | Drop rate 1.0 drops everything; 0.0 drops nothing, regardless of seed. |
+| `TestInjectorDropRateIsSeededAndReproducible` | A partial drop rate is honoured statistically and identical under a fixed seed. |
+| `TestInjectorDelayWindow` | Every delivered message is delayed inside the configured `[min, max]` window. |
+| `TestInjectorFixedDelay` | A window where `min == max` applies that delay exactly. |
+| `TestInjectorCheckOrdering` | The partition cut takes precedence and a dropped message carries no delay. |
 
 ## The layers of confidence
 
